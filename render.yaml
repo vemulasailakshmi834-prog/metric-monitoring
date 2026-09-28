@@ -1,0 +1,294 @@
+services:
+  - type: pserv
+    name: sample-app-1
+    runtime: docker
+    dockerfilePath: ./sample-app/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: 0.5c-512mb
+    envVars:
+      - key: SERVER_PORT
+        value: "8080"
+      - key: MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS
+        value: "true"
+
+  - type: pserv
+    name: sample-app-2
+    runtime: docker
+    dockerfilePath: ./sample-app/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: 0.5c-512mb
+    envVars:
+      - key: SERVER_PORT
+        value: "8080"
+      - key: MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS
+        value: "true"
+
+  - type: pserv
+    name: sample-app-3
+    runtime: docker
+    dockerfilePath: ./sample-app/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: 0.5c-512mb
+    envVars:
+      - key: SERVER_PORT
+        value: "8080"
+      - key: MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS
+        value: "true"
+
+  - type: pserv
+    name: influxdb
+    runtime: image
+    image:
+      url: docker.io/library/influxdb:2.7
+    region: oregon
+    plan: 1c-2g
+    disk:
+      name: influxdb-data
+      mountPath: /var/lib/influxdb2
+      sizeGB: 10
+    envVars:
+      - key: DOCKER_INFLUXDB_INIT_MODE
+        value: setup
+      - key: DOCKER_INFLUXDB_INIT_USERNAME
+        value: admin
+      - key: DOCKER_INFLUXDB_INIT_PASSWORD
+        generateValue: true
+      - key: DOCKER_INFLUXDB_INIT_ORG
+        value: metrics-org
+      - key: DOCKER_INFLUXDB_INIT_BUCKET
+        value: metrics
+      - key: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
+        generateValue: true
+
+  - type: pserv
+    name: kafka
+    runtime: image
+    image:
+      url: docker.io/apache/kafka:4.1.1
+    region: oregon
+    plan: 1c-2g
+    disk:
+      name: kafka-data
+      mountPath: /var/lib/kafka/data
+      sizeGB: 10
+    dockerCommand: >-
+      /bin/bash -c 'export KAFKA_ADVERTISED_LISTENERS="INTERNAL://${KAFKA_PRIVATE_HOST}:9092";
+      export KAFKA_CONTROLLER_QUORUM_VOTERS="1@${KAFKA_PRIVATE_HOST}:9093";
+      exec /etc/kafka/docker/run'
+    envVars:
+      - key: KAFKA_NODE_ID
+        value: "1"
+      - key: KAFKA_PROCESS_ROLES
+        value: broker,controller
+      - key: KAFKA_LISTENERS
+        value: INTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      - key: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+        value: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - key: KAFKA_INTER_BROKER_LISTENER_NAME
+        value: INTERNAL
+      - key: KAFKA_CONTROLLER_LISTENER_NAMES
+        value: CONTROLLER
+      - key: KAFKA_CLUSTER_ID
+        value: MkU3OEVBNTcwNTJENDM2Qk
+      - key: KAFKA_LOG_DIRS
+        value: /var/lib/kafka/data
+      - key: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+        value: "1"
+      - key: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+        value: "1"
+      - key: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+        value: "1"
+      - key: KAFKA_NUM_PARTITIONS
+        value: "3"
+      - key: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+        value: "false"
+      - key: KAFKA_PRIVATE_HOST
+        fromService:
+          type: pserv
+          name: kafka
+          property: host
+
+  - type: pserv
+    name: alert-webhook
+    runtime: docker
+    dockerfilePath: ./alert-webhook/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: 0.5c-512mb
+    envVars:
+      - key: SERVER_PORT
+        value: "8081"
+
+  - type: pserv
+    name: alertmanager
+    runtime: docker
+    dockerfilePath: ./infra/render/alertmanager/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: 0.5c-512mb
+    disk:
+      name: alertmanager-data
+      mountPath: /alertmanager
+      sizeGB: 1
+    envVars:
+      - key: ALERT_WEBHOOK_HOSTPORT
+        fromService:
+          type: pserv
+          name: alert-webhook
+          property: hostport
+
+  - type: pserv
+    name: prometheus
+    runtime: docker
+    dockerfilePath: ./infra/render/prometheus/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: 1c-2g
+    disk:
+      name: prometheus-data
+      mountPath: /prometheus
+      sizeGB: 10
+    envVars:
+      - key: SAMPLE_APP_1_HOSTPORT
+        fromService:
+          type: pserv
+          name: sample-app-1
+          property: hostport
+      - key: SAMPLE_APP_2_HOSTPORT
+        fromService:
+          type: pserv
+          name: sample-app-2
+          property: hostport
+      - key: SAMPLE_APP_3_HOSTPORT
+        fromService:
+          type: pserv
+          name: sample-app-3
+          property: hostport
+      - key: ALERTMANAGER_HOSTPORT
+        fromService:
+          type: pserv
+          name: alertmanager
+          property: hostport
+
+  - type: web
+    name: grafana
+    runtime: docker
+    dockerfilePath: ./infra/render/grafana/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: 0.5c-512mb
+    healthCheckPath: /api/health
+    disk:
+      name: grafana-data
+      mountPath: /var/lib/grafana
+      sizeGB: 1
+    envVars:
+      - key: GF_SERVER_HTTP_ADDR
+        value: 0.0.0.0
+      - key: GF_SECURITY_ADMIN_USER
+        value: admin
+      - key: GF_SECURITY_ADMIN_PASSWORD
+        generateValue: true
+      - key: PROMETHEUS_HOSTPORT
+        fromService:
+          type: pserv
+          name: prometheus
+          property: hostport
+      - key: INFLUXDB_HOSTPORT
+        fromService:
+          type: pserv
+          name: influxdb
+          property: hostport
+      - key: INFLUXDB_ORG
+        fromService:
+          type: pserv
+          name: influxdb
+          envVarKey: DOCKER_INFLUXDB_INIT_ORG
+      - key: INFLUXDB_BUCKET
+        fromService:
+          type: pserv
+          name: influxdb
+          envVarKey: DOCKER_INFLUXDB_INIT_BUCKET
+      - key: INFLUXDB_TOKEN
+        fromService:
+          type: pserv
+          name: influxdb
+          envVarKey: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
+
+  - type: web
+    name: nginx
+    runtime: docker
+    dockerfilePath: ./infra/render/nginx/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: 0.5c-512mb
+    healthCheckPath: /_render_health
+    envVars:
+      - key: SAMPLE_APP_1_HOSTPORT
+        fromService:
+          type: pserv
+          name: sample-app-1
+          property: hostport
+      - key: SAMPLE_APP_2_HOSTPORT
+        fromService:
+          type: pserv
+          name: sample-app-2
+          property: hostport
+      - key: SAMPLE_APP_3_HOSTPORT
+        fromService:
+          type: pserv
+          name: sample-app-3
+          property: hostport
+
+  - type: pserv
+    name: metrics-collector
+    runtime: docker
+    dockerfilePath: ./metrics-collector/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: 0.5c-512mb
+    envVars:
+      - key: SERVER_PORT
+        value: "8080"
+      - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
+        fromService:
+          type: pserv
+          name: kafka
+          property: hostport
+
+  - type: worker
+    name: metrics-consumer
+    runtime: docker
+    dockerfilePath: ./metrics-consumer/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: 0.5c-512mb
+    envVars:
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        fromService:
+          type: pserv
+          name: kafka
+          property: hostport
+      - key: INFLUXDB_HOSTPORT
+        fromService:
+          type: pserv
+          name: influxdb
+          property: hostport
+      - key: INFLUXDB_ORG
+        fromService:
+          type: pserv
+          name: influxdb
+          envVarKey: DOCKER_INFLUXDB_INIT_ORG
+      - key: INFLUXDB_BUCKET
+        fromService:
+          type: pserv
+          name: influxdb
+          envVarKey: DOCKER_INFLUXDB_INIT_BUCKET
+      - key: INFLUXDB_TOKEN
+        fromService:
+          type: pserv
+          name: influxdb
+          envVarKey: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN

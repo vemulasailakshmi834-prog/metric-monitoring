@@ -1,0 +1,27 @@
+resolver ${NGINX_DNS_RESOLVER} valid=30s ipv6=off;
+
+upstream sample_apps {
+    zone sample_apps 64k;
+    server ${SAMPLE_APP_1_HOSTPORT} resolve;
+    server ${SAMPLE_APP_2_HOSTPORT} resolve;
+    server ${SAMPLE_APP_3_HOSTPORT} resolve;
+}
+
+server {
+    listen ${PORT};
+
+    location = /_render_health {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location / {
+        proxy_pass http://sample_apps;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        add_header X-Upstream-Server $upstream_addr always;
+    }
+}

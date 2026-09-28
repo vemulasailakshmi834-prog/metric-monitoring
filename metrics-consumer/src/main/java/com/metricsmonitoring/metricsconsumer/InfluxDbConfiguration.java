@@ -11,10 +11,12 @@ public class InfluxDbConfiguration {
 
     @Bean(destroyMethod = "close")
     public InfluxDBClient influxDBClient(
-            @Value("${influxdb.url}") String url,
+            @Value("${influxdb.url:}") String url,
+            @Value("${influxdb.hostport:influxdb:8086}") String hostport,
             @Value("${influxdb.token}") String token,
             @Value("${influxdb.org}") String organization,
             @Value("${influxdb.bucket}") String bucket) {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), organization, bucket);
+        String connectionUrl = url.isBlank() ? "http://" + hostport : url;
+        return InfluxDBClientFactory.create(connectionUrl, token.toCharArray(), organization, bucket);
     }
 }

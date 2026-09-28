@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ -z "${NGINX_DNS_RESOLVER:-}" ]; then
+    NGINX_DNS_RESOLVER="$(awk '/^nameserver[[:space:]]/ { print $2; exit }' /etc/resolv.conf)"
+    export NGINX_DNS_RESOLVER
+fi
+
+if [ -z "${NGINX_DNS_RESOLVER:-}" ]; then
+    echo "Could not determine the private DNS resolver" >&2
+    exit 1
+fi
