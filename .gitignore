@@ -1,0 +1,79 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Compiled / packaged
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Spring Boot
+*.log
+spring.log
+logs/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+secrets/
+credentials.json
+application-secret.properties
+application-secret.yml
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# VS Code / Cursor
+.vscode/
+*.code-workspace
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# OS
+.DS_Store
+
+# Docker
+*.log.json
+docker-compose.override.yml
+
+# Test / coverage
+.classpath
+.project
+.settings/
+bin/
+.factorypath
+*.coveragerc
+coverage/
+.nyc_output/
+
+# Local scratch
+*.tmp
+*.bak
+*.swp
+*~

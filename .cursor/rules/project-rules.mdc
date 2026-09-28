@@ -1,0 +1,32 @@
+---
+description: Core project rules for the metrics monitoring system
+alwaysApply: true
+---
+
+# Metrics Monitoring Project Rules
+
+- Use **Java 17**.
+- Use **Spring Boot 3.x**.
+- Use **Maven** (multi-module parent at the repo root).
+- Use **Docker Compose** for local infrastructure when we reach that phase.
+- Treat `ARCHITECTURE.md` as the source of truth for components, ports, and data flow.
+- Run **one container per service** where that is the natural unit (sample-app replica, Prometheus, Grafana, Nginx, Alertmanager, alert-webhook).
+- Keep the implementation **beginner-friendly**. Prefer simple, readable Java over clever abstractions.
+- Do **not** implement future phases unless the user explicitly asks for that phase.
+- Do **not** add unnecessary dependencies or frameworks.
+- Do **not** change architecture without explaining why a change is needed.
+- **Test every phase** before moving to the next phase.
+- Keep settings in the right files (`application.yml`, Prometheus YAML, Nginx config, Compose files). Do not hard-code environment-specific values in Java when a config file is the right place.
+- **Never** put passwords or secrets in Git-tracked files. Use ignored env files or local untracked overrides.
+
+Example:
+
+```text
+# ❌ BAD — implementing Kafka in Phase 1
+# ❌ BAD — scraping sample-app through Nginx
+# ❌ BAD — SPRING_DATASOURCE_PASSWORD=secret in a committed file
+
+# ✅ GOOD — only the requested phase
+# ✅ GOOD — Prometheus scrapes each replica directly
+# ✅ GOOD — secrets stay in ignored .env files
+```

@@ -1,0 +1,29 @@
+groups:
+  - name: sample-app-alerts
+    rules:
+      - alert: HighHTTP5xxErrorRate
+        expr: sum by (instance) (rate(http_server_requests_seconds_count{job="sample-app",status=~"5..",uri!="/actuator/prometheus"}[1m])) > 0.1
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: High HTTP 5xx error rate
+          description: The application is returning HTTP 5xx responses at a high rate on {{ $labels.instance }}.
+
+      - alert: ApplicationDown
+        expr: up{job="sample-app"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Application instance is down
+          description: A monitored sample application instance {{ $labels.instance }} is unavailable.
+
+      - alert: HighRequestRate
+        expr: sum(rate(http_server_requests_seconds_count{job="sample-app",uri!="/actuator/prometheus"}[1m])) > 1
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: High request rate
+          description: The monitored application is receiving a high request rate.
